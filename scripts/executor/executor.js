@@ -1,178 +1,98 @@
-// import http from 'k6/http';
-// import { check, sleep } from 'k6';
-// import { Trend } from 'k6/metrics';
-// import { logger } from '../../utils/logger.js';
 
-// // Custom metric to track failure rate
-// const failedRequests = new Trend('failed_requests');
-// const avgResponseTime = new Trend('avg_response_time');
-
-// const testCases = JSON.parse(open('../../config/tests.json'));
-
-// export const options = {
-//   // Define a single VUS and iteration for now. We will run each test case in a loop.
-//   vus: 1,
-//   iterations: 1,
-// };
-
-// export default function () {
-//   testCases.forEach(testCase => {
-//     logger.apiCall(testCase.method, testCase.url, { payload: testCase.payload });
-
-//     // --- EXECUTE THE TEST CASE ---
-//     let res;
-//     const params = { headers: testCase.headers };
-
-//     for (let i = 0; i < testCase.options.iterations; i++) {
-//         switch (testCase.method) {
-//           case 'GET':
-//             res = http.get(testCase.url, params);
-//             break;
-//           case 'POST':
-//             res = http.post(testCase.url, JSON.stringify(testCase.payload), params);
-//             break;
-//           case 'PUT':
-//             res = http.put(testCase.url, JSON.stringify(testCase.payload), params);
-//             break;
-//           case 'DELETE':
-//             res = http.del(testCase.url, null, params);
-//             break;
-//           default:
-//             logger.error(`Unsupported HTTP method: ${testCase.method}`);
-//             return;
-//         }
-
-//         // --- APPLY CHECKS AND THRESHOLDS ---
-//         const allChecksPassed = check(res, {
-//             [`${testCase.name} - status is ${testCase.checks[0].value}`]: (r) => r.status === testCase.checks[0].value,
-//             [`${testCase.name} - body includes "${testCase.checks[1].value}"`]: (r) => r.body.includes(testCase.checks[1].value),
-//         });
-
-//         // Add a check to a custom metric for reporting
-//         const requestFailed = !allChecksPassed;
-//         failedRequests.add(requestFailed);
-//         avgResponseTime.add(res.timings.duration);
-
-//         // This check will show up in the final summary
-//         check(res, {
-//           [`${testCase.name} - Passed checks`]: (r) => allChecksPassed,
-//         });
-
-//         sleep(1);
-//     }
-    
-//     // Output final result for the test case
-//     logger.info(`[${testCase.name}] Test case completed.`);
-    
-//     // Add thresholds from JSON to the final k6 options
-//     if (testCase.options.thresholds) {
-//       if (!options.thresholds) {
-//           options.thresholds = {};
-//       }
-      
-//       const thresholds = testCase.options.thresholds;
-      
-//       if (thresholds.fail_rate !== undefined) {
-//           options.thresholds['failed_requests'] = [`rate<=${thresholds.fail_rate}`];
-//       }
-//       if (thresholds.avg_response_time !== undefined) {
-//           options.thresholds['avg_response_time'] = [`avg<=${thresholds.avg_response_time}`];
-//       }
-//     }
-//   });
-// }
 import http from 'k6/http';
-import { check, sleep } from 'k6';
+import { check, group, sleep } from 'k6';
 import { Trend } from 'k6/metrics';
 import { logger } from '../../utils/logger.js';
 
-// Custom metric to track failure rate
+// Custom metrics to track failure rate and average response time
 const failedRequests = new Trend('failed_requests');
 const avgResponseTime = new Trend('avg_response_time');
 
 const testCases = JSON.parse(open('../../config/tests.json'));
 
-export const options = {
-  // Define a single VUS and iteration for now. We will run each test case in a loop.
-  vus: 1,
-  iterations: 1,
-};
+export let options = {};
+
+// Find the first test case with a 'scenarios' block to configure the test
+const stressTestConfig = testCases.find(tc => tc.options && tc.options.scenarios);
+if (stressTestConfig) {
+    options = stressTestConfig.options;
+} else {
+    // Default options for functional tests if no stress test is defined
+    options = {
+        vus: 1,
+        iterations: 1,
+    };
+    // Add default thresholds if not present
+    if (!options.thresholds) {
+        options.thresholds = {
+            'failed_requests': [`rate<=${0.1}`],
+            'avg_response_time': [`avg<=${1000}`]
+        };
+    }
+}
+
+const testCaseMap = new Map(testCases.map(tc => [tc.name, tc]));
 
 export default function () {
-  testCases.forEach(testCase => {
+    // If a stress test is configured, run only that test case
+    if (stressTestConfig) {
+        const testCase = stressTestConfig;
+        runTestCase(testCase);
+    } else {
+        // Otherwise, loop through all functional tests
+        testCases.forEach(testCase => {
+            runTestCase(testCase);
+        });
+    }
+}
+
+function runTestCase(testCase) {
     logger.apiCall(testCase.method, testCase.url, { payload: testCase.payload });
 
-    // --- EXECUTE THE TEST CASE ---
-    let res;
     const params = { headers: testCase.headers };
+    let res;
 
-    for (let i = 0; i < testCase.options.iterations; i++) {
-      switch (testCase.method) {
+    switch (testCase.method) {
         case 'GET':
-          res = http.get(testCase.url, params);
-          break;
+            res = http.get(testCase.url, params);
+            break;
         case 'POST':
-          res = http.post(testCase.url, JSON.stringify(testCase.payload), params);
-          break;
+            res = http.post(testCase.url, JSON.stringify(testCase.payload), params);
+            break;
         case 'PUT':
-          res = http.put(testCase.url, JSON.stringify(testCase.payload), params);
-          break;
+            res = http.put(testCase.url, JSON.stringify(testCase.payload), params);
+            break;
         case 'DELETE':
-          res = http.del(testCase.url, null, params);
-          break;
+            res = http.del(testCase.url, null, params);
+            break;
         default:
-          logger.error(`Unsupported HTTP method: ${testCase.method}`);
-          return;
-      }
+            logger.error(`Unsupported HTTP method: ${testCase.method}`);
+            return;
+    }
 
-      // --- APPLY CHECKS AND THRESHOLDS ---
-      const allChecks = {};
-      testCase.checks.forEach(testCheck => {
-          switch (testCheck.type) {
-              case 'status':
-                  allChecks[`${testCase.name} - Status is ${testCheck.value}`] = (r) => r.status === testCheck.value;
-                  break;
-              case 'body-includes':
-                  allChecks[`${testCase.name} - Body includes "${testCheck.value}"`] = (r) => r.body && r.body.includes(testCheck.value);
-                  break;
-              case 'body-length':
-                  allChecks[`${testCase.name} - Body length is at least ${testCheck.min}`] = (r) => r.body.length >= testCheck.min;
-                  break;
-          }
-      });
-      
-      const allChecksPassed = check(res, allChecks);
+    const allChecks = {};
+    testCase.checks.forEach(testCheck => {
+        switch (testCheck.type) {
+            case 'status':
+                allChecks[`${testCase.name} - Status is ${testCheck.value}`] = (r) => r.status === testCheck.value;
+                break;
+            case 'body-includes':
+                allChecks[`${testCase.name} - Body includes "${testCheck.value}"`] = (r) => r.body && r.body.includes(testCheck.value);
+                break;
+            case 'body-length':
+                allChecks[`${testCase.name} - Body length is at least ${testCheck.min}`] = (r) => r.body.length >= testCheck.min;
+                break;
+        }
+    });
 
-      // Add a check to a custom metric for reporting
-      const requestFailed = !allChecksPassed;
-      failedRequests.add(requestFailed);
-      avgResponseTime.add(res.timings.duration);
+    const allChecksPassed = check(res, allChecks);
+    
+    failedRequests.add(!allChecksPassed);
+    avgResponseTime.add(res.timings.duration);
 
-      // This check will show up in the final summary
-      check(res, {
+    check(res, {
         [`${testCase.name} - Passed checks`]: (r) => allChecksPassed,
-      });
-
-      sleep(1);
-    }
+    });
     
-    // Output final result for the test case
-    logger.info(`[${testCase.name}] Test case completed.`);
-    
-    // Add thresholds from JSON to the final k6 options
-    if (testCase.options.thresholds) {
-      if (!options.thresholds) {
-          options.thresholds = {};
-      }
-      
-      const thresholds = testCase.options.thresholds;
-      
-      if (thresholds.fail_rate !== undefined) {
-          options.thresholds['failed_requests'] = [`rate<=${thresholds.fail_rate}`];
-      }
-      if (thresholds.avg_response_time !== undefined) {
-          options.thresholds['avg_response_time'] = [`avg<=${thresholds.avg_response_time}`];
-      }
-    }
-  });
+    sleep(1);
 }

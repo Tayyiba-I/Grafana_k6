@@ -103,71 +103,104 @@
     }
   },
   {
-  "name": "Delete a post",
-  "type": "api",
-  "domain": "jsonplaceholder",
-  "description": "Deletes an existing post (ID 1) and verifies the successful deletion status.",
-  "tags": ["delete", "post", "jsonplaceholder"],
-  "method": "DELETE",
-  "url": "https://jsonplaceholder.typicode.com/posts/1",
-  "checks": [
-    { "type": "status", "value": 200 }
-  ],
-  "headers": {
-    "Accept": "application/json"
+    "name": "Delete a post",
+    "type": "api",
+    "domain": "jsonplaceholder",
+    "description": "Deletes an existing post (ID 1) and verifies the successful deletion status.",
+    "tags": ["delete", "post", "jsonplaceholder"],
+    "method": "DELETE",
+    "url": "https://jsonplaceholder.typicode.com/posts/1",
+    "checks": [
+      { "type": "status", "value": 200 }
+    ],
+    "headers": {
+      "Accept": "application/json"
+    },
+    "options": {
+      "iterations": 1,
+      "thresholds": {
+        "fail_rate": 0.1,
+        "avg_response_time": 1000
+      }
+    }
   },
-  "options": {
-    "iterations": 1,
-    "thresholds": {
-      "fail_rate": 0.1,
-      "avg_response_time": 1000
+  {
+    "name": "Get a non-existent post",
+    "type": "api",
+    "domain": "jsonplaceholder",
+    "description": "Verifies that fetching a post with an invalid ID returns a 404 Not Found status.",
+    "tags": ["get", "negative", "404", "jsonplaceholder"],
+    "method": "GET",
+    "url": "https://jsonplaceholder.typicode.com/posts/9999999",
+    "checks": [
+      { "type": "status", "value": 404 }
+    ],
+    "headers": {
+      "Accept": "application/json"
+    },
+    "options": {
+      "iterations": 1,
+      "thresholds": {
+        "fail_rate": 0.1,
+        "avg_response_time": 1000
+      }
+    }
+  },
+  {
+    "name": "Get a user by ID",
+    "type": "api",
+    "domain": "jsonplaceholder",
+    "description": "Fetches a user by their ID and verifies the user's username.",
+    "tags": ["get", "user", "jsonplaceholder"],
+    "method": "GET",
+    "url": "https://jsonplaceholder.typicode.com/users/1",
+    "checks": [
+      { "type": "status", "value": 200 },
+      { "type": "body-includes", "value": "Bret" }
+    ],
+    "headers": {
+      "Accept": "application/json"
+    },
+    "options": {
+      "iterations": 1,
+      "thresholds": {
+        "fail_rate": 0.1,
+        "avg_response_time": 1000
+      }
+    }
+  },
+  {
+    "name": "Stress Test - All VUs on Single Endpoint",
+    "type": "stress-test",
+    "domain": "jsonplaceholder",
+    "description": "Simulates a stress test with ramping users on a single critical endpoint.",
+    "tags": ["stress", "load", "ramping-vus"],
+    "method": "GET",
+    "url": "https://jsonplaceholder.typicode.com/posts/1",
+    "checks": [
+      { "type": "status", "value": 200 },
+      { "type": "body-includes", "value": "sunt aut facere repellat provident occaecati excepturi optio reprehenderit" }
+    ],
+    "options": {
+      "scenarios": {
+        "stress_test_scenario": {
+          "executor": "ramping-vus",
+          "startVUs": 0,
+          "stages": [
+            { "duration": "2m", "target": 20 },
+            { "duration": "3m", "target": 20 },
+            { "duration": "1m", "target": 50 },
+            { "duration": "1m", "target": 50 },
+            { "duration": "1m", "target": 0 }
+          ],
+          "tags": { "test_type": "stress_test" },
+          "gracefulStop": "5s"
+        }
+      },
+      "thresholds": {
+        "http_req_failed": ["rate<0.01"],
+        "http_req_duration": ["p(95)<400"]
+      }
     }
   }
-},
-{
-  "name": "Get a non-existent post",
-  "type": "api",
-  "domain": "jsonplaceholder",
-  "description": "Verifies that fetching a post with an invalid ID returns a 404 Not Found status.",
-  "tags": ["get", "negative", "404", "jsonplaceholder"],
-  "method": "GET",
-  "url": "https://jsonplaceholder.typicode.com/posts/9999999",
-  "checks": [
-    { "type": "status", "value": 404 }
-  ],
-  "headers": {
-    "Accept": "application/json"
-  },
-  "options": {
-    "iterations": 1,
-    "thresholds": {
-      "fail_rate": 0.1,
-      "avg_response_time": 1000
-    }
-  }
-},
-{
-  "name": "Get a user by ID",
-  "type": "api",
-  "domain": "jsonplaceholder",
-  "description": "Fetches a user by their ID and verifies the user's username.",
-  "tags": ["get", "user", "jsonplaceholder"],
-  "method": "GET",
-  "url": "https://jsonplaceholder.typicode.com/users/1",
-  "checks": [
-    { "type": "status", "value": 200 },
-    { "type": "body-includes", "value": "Bret" }
-  ],
-  "headers": {
-    "Accept": "application/json"
-  },
-  "options": {
-    "iterations": 1,
-    "thresholds": {
-      "fail_rate": 0.1,
-      "avg_response_time": 1000
-    }
-  }
-}
-
 ]
