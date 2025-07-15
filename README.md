@@ -16,15 +16,66 @@ The project follows a modular structure to organize test scripts, utilities, and
 * **`utils/`**: Houses reusable JavaScript modules and helper functions.
     * `logger.js`: A custom logging utility for structured and consistent output.
 
+## Test Case Schema in `config/tests.json`
+
+The `tests.json` file contains a flexible schema designed to support various test types and run configurations for reporting and classification purposes.
+
+### Example Test Case
+
+```json
+{
+  "type": "http",
+  "domain": "jsonplaceholder",
+  "name": "Get all posts",
+  "description": "Functional test to get a list of all posts.",
+  "method": "GET",
+  "url": "[https://jsonplaceholder.typicode.com/posts](https://jsonplaceholder.typicode.com/posts)",
+  "checks": [
+    { "type": "status", "value": 200 },
+    { "type": "body-length", "min": 100 }
+  ],
+  "headers": {
+    "Accept": "application/json"
+  },
+  "options": {
+    "iterations": 1,
+    "thresholds": {
+      "fail_rate": 0.1,
+      "avg_response_time": 1000
+    }
+  }
+}
+````
+
+### Schema Attributes
+
+  * **`type` (string)**: The category or type of test. Currently, "http" is supported. This attribute allows for future expansion to other types like "graphql" or "grpc."
+  * **`domain` (string)**: The domain, category, or service being tested. This is useful for reporting and grouping test results.
+  * **`name` (string)**: A short, human-readable name for the test case.
+  * **`description` (string, optional)**: A more detailed explanation of the test case's purpose.
+  * **`method` (string)**: The HTTP method (e.g., "GET", "POST", "PUT", "DELETE").
+  * **`url` (string)**: The URL of the endpoint being tested.
+  * **`checks` (array)**: An array of checks to be performed on the test's response.
+      * `type`: The type of check (e.g., "status", "body-includes", "body-length").
+      * `value`: The expected value for the check.
+  * **`headers` (object, optional)**: An object of HTTP headers to be sent with the request.
+  * **`payload` (object, optional)**: The request body for methods like POST or PUT.
+  * **`options` (object, optional)**: Configuration for test execution, crucial for stress testing.
+      * `iterations` (number): Defines how many times this specific test case should run.
+      * `thresholds` (object): A set of success criteria for the test, allowing you to define pass/fail conditions.
+          * `fail_rate` (number): The maximum acceptable failure rate (e.g., 0.1 for 10% failure). A higher rate will cause the test to fail.
+          * `avg_response_time` (number): The maximum acceptable average response time in milliseconds. A higher value will cause the test to fail.
+
 ## Environment Setup
 
 ### Prerequisites
 
-* **k6**: The open-source load testing tool.
+  * **k6**: The open-source load testing tool.
 
 ### Installation
 
 1.  **Install k6**: Follow the official k6 documentation to install k6 on your system.
+
 2.  **Clone the Repository**: Clone this repository to your local machine:
 
     ```bash
@@ -42,3 +93,9 @@ To run the tests defined in `config/tests.json`, use the central executor script
 
 ```bash
 k6 run scripts/executor/executor.js
+```
+
+The executor will read the `tests.json` file, apply the configured `iterations` and `thresholds`, and report the results based on these criteria.
+
+```
+```
