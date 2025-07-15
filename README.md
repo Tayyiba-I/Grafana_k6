@@ -24,27 +24,28 @@ The `tests.json` file contains a flexible schema designed to support various tes
 
 ```json
 {
-  "type": "http",
-  "domain": "jsonplaceholder",
-  "name": "Get all posts",
-  "description": "Functional test to get a list of all posts.",
-  "method": "GET",
-  "url": "[https://jsonplaceholder.typicode.com/posts](https://jsonplaceholder.typicode.com/posts)",
-  "checks": [
-    { "type": "status", "value": 200 },
-    { "type": "body-length", "min": 100 }
-  ],
-  "headers": {
-    "Accept": "application/json"
-  },
-  "options": {
-    "iterations": 1,
-    "thresholds": {
-      "fail_rate": 0.1,
-      "avg_response_time": 1000
+    "name": "Get all posts",
+    "type": "api",
+    "domain": "jsonplaceholder",
+    "description": "Fetches a list of all posts to verify data retrieval from the posts endpoint.",
+    "tags": ["get", "posts", "public-api"],
+    "method": "GET",
+    "url": "https://jsonplaceholder.typicode.com/posts",
+    "checks": [
+      { "type": "status", "value": 200 },
+      { "type": "body-length", "min": 100 }
+    ],
+    "headers": {
+      "Accept": "application/json"
+    },
+    "options": {
+      "iterations": 1,
+      "thresholds": {
+        "fail_rate": 0.1,
+        "avg_response_time": 1000
+      }
     }
   }
-}
 ````
 
 ### Schema Attributes
