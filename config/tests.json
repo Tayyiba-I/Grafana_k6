@@ -1,0 +1,61 @@
+[
+  {
+    "name": "Get all posts",
+    "method": "GET",
+    "url": "https://jsonplaceholder.typicode.com/posts",
+    "checks": [
+      { "type": "status", "value": 200 },
+      { "type": "body-length", "min": 100 }
+    ],
+    "headers": {
+      "Accept": "application/json"
+    }
+  },
+  {
+    "name": "Create a new post",
+    "method": "POST",
+    "url": "https://jsonplaceholder.typicode.com/posts",
+    "payload": {
+      "title": "Configurable Post",
+      "body": "This post was created from a JSON config file!",
+      "userId": 1
+    },
+    "checks": [
+      { "type": "status", "value": 201 },
+      { "type": "body-includes", "value": "Configurable Post" }
+    ],
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  },
+  {
+    "name": "Update a post",
+    "method": "PUT",
+    "url": "https://jsonplaceholder.typicode.com/posts/1",
+    "payload": {
+      "id": 1,
+      "title": "Updated Title",
+      "body": "This post was updated by k6 from a config.",
+      "userId": 1
+    },
+    "checks": [
+      { "type": "status", "value": 200 },
+      { "type": "body-includes", "value": "Updated Title" }
+    ],
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  },
+  {
+    "name": "Get a single post",
+    "method": "GET",
+    "url": "https://jsonplaceholder.typicode.com/posts/1",
+    "checks": [
+      { "type": "status", "value": 200 },
+      { "type": "body-includes", "value": "sunt aut facere repellat provident occaecati excepturi optio reprehenderit" }
+    ],
+    "headers": {
+      "Accept": "application/json"
+    }
+  }
+]
