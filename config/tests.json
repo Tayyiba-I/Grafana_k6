@@ -1,6 +1,10 @@
 [
   {
     "name": "Get all posts",
+    "type": "api",
+    "domain": "jsonplaceholder",
+    "description": "Fetches a list of all posts to verify data retrieval from the posts endpoint.",
+    "tags": ["get", "posts", "public-api"],
     "method": "GET",
     "url": "https://jsonplaceholder.typicode.com/posts",
     "checks": [
@@ -9,10 +13,21 @@
     ],
     "headers": {
       "Accept": "application/json"
+    },
+    "options": {
+      "iterations": 1,
+      "thresholds": {
+        "fail_rate": 0.1,
+        "avg_response_time": 1000
+      }
     }
   },
   {
     "name": "Create a new post",
+    "type": "api",
+    "domain": "jsonplaceholder",
+    "description": "Creates a new post and verifies that the response contains the expected title.",
+    "tags": ["post", "create", "write", "jsonplaceholder"],
     "method": "POST",
     "url": "https://jsonplaceholder.typicode.com/posts",
     "payload": {
@@ -26,10 +41,21 @@
     ],
     "headers": {
       "Content-Type": "application/json"
+    },
+    "options": {
+      "iterations": 1,
+      "thresholds": {
+        "fail_rate": 0.1,
+        "avg_response_time": 1000
+      }
     }
   },
   {
     "name": "Update a post",
+    "type": "api",
+    "domain": "jsonplaceholder",
+    "description": "Updates the title and body of an existing post (ID 1) and validates the response.",
+    "tags": ["put", "update", "post", "jsonplaceholder"],
     "method": "PUT",
     "url": "https://jsonplaceholder.typicode.com/posts/1",
     "payload": {
@@ -44,10 +70,21 @@
     ],
     "headers": {
       "Content-Type": "application/json"
+    },
+    "options": {
+      "iterations": 1,
+      "thresholds": {
+        "fail_rate": 0.1,
+        "avg_response_time": 1000
+      }
     }
   },
   {
     "name": "Get a single post",
+    "type": "api",
+    "domain": "jsonplaceholder",
+    "description": "Fetches a single post by ID and verifies specific content in the body.",
+    "tags": ["get", "single-post", "verify", "jsonplaceholder"],
     "method": "GET",
     "url": "https://jsonplaceholder.typicode.com/posts/1",
     "checks": [
@@ -56,6 +93,81 @@
     ],
     "headers": {
       "Accept": "application/json"
+    },
+    "options": {
+      "iterations": 1,
+      "thresholds": {
+        "fail_rate": 0.1,
+        "avg_response_time": 1000
+      }
+    }
+  },
+  {
+  "name": "Delete a post",
+  "type": "api",
+  "domain": "jsonplaceholder",
+  "description": "Deletes an existing post (ID 1) and verifies the successful deletion status.",
+  "tags": ["delete", "post", "jsonplaceholder"],
+  "method": "DELETE",
+  "url": "https://jsonplaceholder.typicode.com/posts/1",
+  "checks": [
+    { "type": "status", "value": 200 }
+  ],
+  "headers": {
+    "Accept": "application/json"
+  },
+  "options": {
+    "iterations": 1,
+    "thresholds": {
+      "fail_rate": 0.1,
+      "avg_response_time": 1000
     }
   }
+},
+{
+  "name": "Get a non-existent post",
+  "type": "api",
+  "domain": "jsonplaceholder",
+  "description": "Verifies that fetching a post with an invalid ID returns a 404 Not Found status.",
+  "tags": ["get", "negative", "404", "jsonplaceholder"],
+  "method": "GET",
+  "url": "https://jsonplaceholder.typicode.com/posts/9999999",
+  "checks": [
+    { "type": "status", "value": 404 }
+  ],
+  "headers": {
+    "Accept": "application/json"
+  },
+  "options": {
+    "iterations": 1,
+    "thresholds": {
+      "fail_rate": 0.1,
+      "avg_response_time": 1000
+    }
+  }
+},
+{
+  "name": "Get a user by ID",
+  "type": "api",
+  "domain": "jsonplaceholder",
+  "description": "Fetches a user by their ID and verifies the user's username.",
+  "tags": ["get", "user", "jsonplaceholder"],
+  "method": "GET",
+  "url": "https://jsonplaceholder.typicode.com/users/1",
+  "checks": [
+    { "type": "status", "value": 200 },
+    { "type": "body-includes", "value": "Bret" }
+  ],
+  "headers": {
+    "Accept": "application/json"
+  },
+  "options": {
+    "iterations": 1,
+    "thresholds": {
+      "fail_rate": 0.1,
+      "avg_response_time": 1000
+    }
+  }
+}
+
 ]
