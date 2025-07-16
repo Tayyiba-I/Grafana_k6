@@ -1,105 +1,154 @@
+
 import http from 'k6/http';
-import { check, group, sleep } from 'k6';
-import { Trend } from 'k6/metrics';
+import { check, sleep, __ITER } from 'k6';
+import { Trend, Rate } from 'k6/metrics';
+import { htmlReport } from 'https://raw.githubusercontent.com/benc-uk/k6-reporter/main/dist/bundle.js';
+import { testCaseHandlers } from './testCaseHandlers.js';
 import { logger } from '../../utils/logger.js';
 
-// Custom metrics to track failure rate and average response time
-const failedRequests = new Trend('failed_requests');
+const failedRequests = new Rate('failed_requests');
 const avgResponseTime = new Trend('avg_response_time');
+const allTestResults = [];
 
 const testCases = JSON.parse(open('../../config/tests.json'));
 
-export let options = {};
+let options = {
+    vus: 1,
+    iterations: testCases.length,
+    thresholds: {
+        'failed_requests': ['rate<=0.1'],
+        'http_req_duration': ['avg<=1000'],
+    },
+};
 
-// Find the first test case with a 'scenarios' block to configure the test
-const stressTestConfig = testCases.find(tc => tc.options && tc.options.scenarios);
-if (stressTestConfig) {
-    options = stressTestConfig.options;
-} else {
-    // Default options for functional tests if no stress test is defined
-    options = {
-        vus: 1,
-        iterations: 1,
-    };
-    // Add default thresholds if not present
-    if (!options.thresholds) {
-        options.thresholds = {
-            'failed_requests': [`rate<=${0.1}`],
-            'avg_response_time': [`avg<=${1000}`]
-        };
-    }
+let isStressTest = false;
+let stressTestCase = null;
+
+// Scenario-based
+for (const testCase of testCases) {
+    if (testCase.options?.scenarios) {
+        isStressTest = true;
+        stressTestCase = testCase;
+        options = {
+            ...testCase.options,
+            thresholds: testCase.options.thresholds || {
+                'failed_requests': ['rate<=0.1'],
+                'http_req_duration': ['avg<=1000'],
+            },
+        };
+        break;
+    }
 }
 
-const testCaseMap = new Map(testCases.map(tc => [tc.name, tc]));
+// Load-based
+if (!isStressTest) {
+    const loadTestCase = testCases.find(tc => tc.users && tc.duration);
+    if (loadTestCase) {
+        isStressTest = true;
+        stressTestCase = loadTestCase;
+        options = {
+            vus: loadTestCase.users,
+            duration: loadTestCase.duration,
+            thresholds: {
+                'failed_requests': ['rate<=0.1'],
+                'http_req_duration': ['avg<=1000'],
+            },
+        };
+    }
+}
+
+export { options };
 
 export default function () {
-    // If a stress test is configured, run only that test case
-    if (stressTestConfig) {
-        const testCase = stressTestConfig;
-        runTestCase(testCase);
-    } else {
-        // Otherwise, loop through all functional tests
-        testCases.forEach(testCase => {
-            runTestCase(testCase);
-        });
-    }
+    if (isStressTest) {
+        runTestCase(stressTestCase);
+    } else {
+        const testCase = testCases[__ITER % testCases.length];
+        runTestCase(testCase);
+    }
 }
 
 function runTestCase(testCase) {
-    logger.apiCall(testCase.method, testCase.url, { payload: testCase.payload });
+    const handler = testCaseHandlers.get(testCase.type || 'http-request');
+    if (!handler) {
+        logger.error(`Unsupported test case type: ${testCase.type}`);
+        failedRequests.add(1);
+        return;
+    }
 
-    const params = { headers: testCase.headers };
-    let res;
+    const result = handler.execute(testCase);
 
-    switch (testCase.method) {
-        case 'GET':
-            res = http.get(testCase.url, params);
-            break;
-        case 'POST':
-            res = http.post(testCase.url, JSON.stringify(testCase.payload), params);
-            break;
-        case 'PUT':
-            res = http.put(testCase.url, JSON.stringify(testCase.payload), params);
-            break;
-        case 'DELETE':
-            res = http.del(testCase.url, null, params);
-            break;
-        default:
-            logger.error(`Unsupported HTTP method: ${testCase.method}`);
-            return;
-    }
+    failedRequests.add(!result.overallPassed);
+    avgResponseTime.add(result.duration);
 
-    const allChecks = {};
-    testCase.checks.forEach(testCheck => {
-        switch (testCheck.type) {
-            case 'status':
-                allChecks[`${testCase.name} - Status is ${testCheck.value}`] = (r) => r.status === testCheck.value;
-                break;
-            case 'body-includes':
-                allChecks[`${testCase.name} - Body includes "${testCheck.value}"`] = (r) => r.body && r.body.includes(testCheck.value);
-                break;
-            case 'body-length':
-                allChecks[`${testCase.name} - Body length is at least ${testCheck.min}`] = (r) => r.body.length >= testCheck.min;
-                break;
-        }
-    });
+    check(null, {
+        [`${testCase.name} - Overall Passed`]: () => result.overallPassed,
+    });
 
-    const allChecksPassed = check(res, allChecks);
-    
-    failedRequests.add(!allChecksPassed);
-    avgResponseTime.add(res.timings.duration);
-
-    check(res, {
-        [`${testCase.name} - Passed checks`]: (r) => allChecksPassed,
-    });
-    
-    sleep(1);
+    allTestResults.push(result);
+    sleep(1);
 }
 
-import { htmlReport } from "https://raw.githubusercontent.com/benc-uk/k6-reporter/main/dist/bundle.js";
-
 export function handleSummary(data) {
-  return {
-    "summary.html": htmlReport(data),
-  };
+    let passedCount = 0;
+    let failedCount = 0;
+    const lines = [];
+
+    for (const result of allTestResults) {
+        const icon = result.overallPassed ? '✅' : '❌';
+        const statusText = result.overallPassed ? 'PASS' : 'FAIL';
+        result.overallPassed ? passedCount++ : failedCount++;
+
+        lines.push(`\n${icon} ${result.testCaseName}`);
+        lines.push(`🔹 Method: ${result.method}`);
+        lines.push(`🔗 URL: ${result.url}`);
+        lines.push(`🕒 Duration: ${result.duration.toFixed(2)} ms`);
+        lines.push(`📊 Status Code: ${result.status}`);
+        lines.push(`🏁 Result: ${statusText}`);
+
+        logger.info(`${icon} ${result.testCaseName} — ${statusText}`, {
+            method: result.method,
+            url: result.url,
+            status: result.status,
+            duration: `${result.duration.toFixed(2)}ms`,
+        });
+
+        if (result.checks?.length) {
+            lines.push(`🔍 Checks:`);
+            result.checks.forEach((check) => {
+                const checkIcon = check.passed ? '✅' : '❌';
+                const expected = check.expected !== undefined ? `expected: ${check.expected}` : '';
+                const actual = check.actual !== undefined ? `actual: ${check.actual}` : '';
+                const checkLine = `   ${checkIcon} ${check.type} — ${expected}${actual ? `, ${actual}` : ''}`;
+                lines.push(checkLine);
+
+                logger.checkResult(`${result.testCaseName} - ${check.type}`, check.passed, {
+                    expected: check.expected,
+                    actual: check.actual,
+                });
+            });
+        } else {
+            lines.push(`🔍 Checks: None`);
+        }
+
+        lines.push('──────────────────────────────────────────────');
+    }
+
+    const summaryFooter = `\n Final Summary: ✅ Passed: ${passedCount} | ❌ Failed: ${failedCount}`;
+    lines.push(summaryFooter);
+
+    logger.info(' Final Summary', {
+        passed: passedCount,
+        failed: failedCount,
+    });
+
+    const fullSummary = lines.join('\n');
+    data.summaryText = fullSummary;
+
+    return {
+        'summary.html': htmlReport(data, {
+            title: ' K6 Complete Test Report',
+        }),
+        'summary.txt': fullSummary,
+    };
 }

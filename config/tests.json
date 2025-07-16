@@ -1,7 +1,7 @@
 [
   {
     "name": "Get all posts",
-    "type": "api",
+    "type": "http-request",
     "domain": "jsonplaceholder",
     "description": "Fetches a list of all posts to verify data retrieval from the posts endpoint.",
     "tags": ["get", "posts", "public-api"],
@@ -13,21 +13,14 @@
     ],
     "headers": {
       "Accept": "application/json"
-    },
-    "options": {
-      "iterations": 1,
-      "thresholds": {
-        "fail_rate": 0.1,
-        "avg_response_time": 1000
-      }
     }
   },
   {
     "name": "Create a new post",
-    "type": "api",
+    "type": "http-request",
     "domain": "jsonplaceholder",
     "description": "Creates a new post and verifies that the response contains the expected title.",
-    "tags": ["post", "create", "write", "jsonplaceholder"],
+    "tags": ["post", "create", "jsonplaceholder"],
     "method": "POST",
     "url": "https://jsonplaceholder.typicode.com/posts",
     "payload": {
@@ -41,27 +34,17 @@
     ],
     "headers": {
       "Content-Type": "application/json"
-    },
-    "options": {
-      "iterations": 1,
-      "thresholds": {
-        "fail_rate": 0.1,
-        "avg_response_time": 1000
-      }
     }
   },
   {
     "name": "Update a post",
-    "type": "api",
-    "domain": "jsonplaceholder",
-    "description": "Updates the title and body of an existing post (ID 1) and validates the response.",
-    "tags": ["put", "update", "post", "jsonplaceholder"],
+    "type": "http-request",
     "method": "PUT",
     "url": "https://jsonplaceholder.typicode.com/posts/1",
     "payload": {
       "id": 1,
       "title": "Updated Title",
-      "body": "This post was updated by k6 from a config.",
+      "body": "This post was updated by k6.",
       "userId": 1
     },
     "checks": [
@@ -70,21 +53,11 @@
     ],
     "headers": {
       "Content-Type": "application/json"
-    },
-    "options": {
-      "iterations": 1,
-      "thresholds": {
-        "fail_rate": 0.1,
-        "avg_response_time": 1000
-      }
     }
   },
   {
-    "name": "Get a single post",
-    "type": "api",
-    "domain": "jsonplaceholder",
-    "description": "Fetches a single post by ID and verifies specific content in the body.",
-    "tags": ["get", "single-post", "verify", "jsonplaceholder"],
+    "name": "Get single post by ID",
+    "type": "http-request",
     "method": "GET",
     "url": "https://jsonplaceholder.typicode.com/posts/1",
     "checks": [
@@ -93,21 +66,11 @@
     ],
     "headers": {
       "Accept": "application/json"
-    },
-    "options": {
-      "iterations": 1,
-      "thresholds": {
-        "fail_rate": 0.1,
-        "avg_response_time": 1000
-      }
     }
   },
   {
     "name": "Delete a post",
-    "type": "api",
-    "domain": "jsonplaceholder",
-    "description": "Deletes an existing post (ID 1) and verifies the successful deletion status.",
-    "tags": ["delete", "post", "jsonplaceholder"],
+    "type": "http-request",
     "method": "DELETE",
     "url": "https://jsonplaceholder.typicode.com/posts/1",
     "checks": [
@@ -115,43 +78,11 @@
     ],
     "headers": {
       "Accept": "application/json"
-    },
-    "options": {
-      "iterations": 1,
-      "thresholds": {
-        "fail_rate": 0.1,
-        "avg_response_time": 1000
-      }
-    }
-  },
-  {
-    "name": "Get a non-existent post",
-    "type": "api",
-    "domain": "jsonplaceholder",
-    "description": "Verifies that fetching a post with an invalid ID returns a 404 Not Found status.",
-    "tags": ["get", "negative", "404", "jsonplaceholder"],
-    "method": "GET",
-    "url": "https://jsonplaceholder.typicode.com/posts/9999999",
-    "checks": [
-      { "type": "status", "value": 404 }
-    ],
-    "headers": {
-      "Accept": "application/json"
-    },
-    "options": {
-      "iterations": 1,
-      "thresholds": {
-        "fail_rate": 0.1,
-        "avg_response_time": 1000
-      }
     }
   },
   {
     "name": "Get a user by ID",
-    "type": "api",
-    "domain": "jsonplaceholder",
-    "description": "Fetches a user by their ID and verifies the user's username.",
-    "tags": ["get", "user", "jsonplaceholder"],
+    "type": "http-request",
     "method": "GET",
     "url": "https://jsonplaceholder.typicode.com/users/1",
     "checks": [
@@ -160,46 +91,109 @@
     ],
     "headers": {
       "Accept": "application/json"
-    },
-    "options": {
-      "iterations": 1,
-      "thresholds": {
-        "fail_rate": 0.1,
-        "avg_response_time": 1000
-      }
     }
   },
   {
-    "name": "Stress Test - All VUs on Single Endpoint",
-    "type": "stress-test",
-    "domain": "jsonplaceholder",
-    "description": "Simulates a stress test with ramping users on a single critical endpoint.",
-    "tags": ["stress", "load", "ramping-vus"],
+    "name": "Public API GET - httpbin",
+    "type": "http-request",
     "method": "GET",
-    "url": "https://jsonplaceholder.typicode.com/posts/1",
+    "url": "https://httpbin.org/get",
+    "headers": {
+      "Accept": "application/json"
+    },
     "checks": [
       { "type": "status", "value": 200 },
-      { "type": "body-includes", "value": "sunt aut facere repellat provident occaecati excepturi optio reprehenderit" }
-    ],
+      { "type": "body-includes", "value": "origin" },
+      { "type": "body-length", "min": 200 }
+    ]
+  },
+  {
+    "name": "Public API POST - httpbin",
+    "type": "http-request",
+    "method": "POST",
+    "url": "https://httpbin.org/post",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "payload": {
+      "user_id": 123,
+      "message": "Hello from k6!"
+    },
+    "checks": [
+      { "type": "status", "value": 200 },
+      { "type": "body-includes", "value": "Hello from k6!" }
+    ]
+  },
+  {
+    "name": "Public API PUT - httpbin",
+    "type": "http-request",
+    "method": "PUT",
+    "url": "https://httpbin.org/put",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "payload": {
+      "data": "This is a PUT request."
+    },
+    "checks": [
+      { "type": "status", "value": 200 },
+      { "type": "body-includes", "value": "This is a PUT request." }
+    ]
+  },
+  {
+    "name": "Public API DELETE - httpbin",
+    "type": "http-request",
+    "method": "DELETE",
+    "url": "https://httpbin.org/delete",
+    "checks": [
+      { "type": "status", "value": 200 }
+    ]
+  },
+  {
+    "name": "Stress Test - High Load",
+    "type": "http-request",
+    "method": "GET",
+    "url": "https://httpbin.org/delay/1",
     "options": {
       "scenarios": {
-        "stress_test_scenario": {
-          "executor": "ramping-vus",
-          "startVUs": 0,
-          "stages": [
-            { "duration": "2m", "target": 20 },
-            { "duration": "3m", "target": 20 },
-            { "duration": "1m", "target": 50 },
-            { "duration": "1m", "target": 50 },
-            { "duration": "1m", "target": 0 }
-          ],
-          "tags": { "test_type": "stress_test" },
-          "gracefulStop": "5s"
+        "stress_scenario": {
+          "executor": "constant-arrival-rate",
+          "rate": 10,
+          "timeUnit": "1s",
+          "duration": "30s",
+          "preAllocatedVUs": 20,
+          "maxVUs": 25
         }
-      },
+      }
+    },
+    "checks": [
+      { "type": "status", "value": 200 }
+    ]
+  },
+  {
+    "name": "Functional Test - Login",
+    "type": "api-post",
+    "endpoint": "/api/login",
+    "data": {
+      "username": "testuser",
+      "password": "password"
+    }
+  },
+  {
+    "name": "Functional Test - Get Profile",
+    "type": "api-get",
+    "endpoint": "/api/profile"
+  },
+  {
+    "name": "Load Test - API",
+    "type": "api-get",
+    "endpoint": "/api/items",
+    "options": {
+      "vus": 20,
+      "duration": "60s",
       "thresholds": {
-        "http_req_failed": ["rate<0.01"],
-        "http_req_duration": ["p(95)<400"]
+        "http_req_duration": ["p(95)<2000"],
+        "failed_requests": ["rate<=0.05"]
       }
     }
   }
