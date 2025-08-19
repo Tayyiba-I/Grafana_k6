@@ -1,0 +1,28 @@
+# This tells the pipeline to run every time code is pushed to the 'main' branch.
+trigger:
+- main
+
+# This tells the pipeline to use a Microsoft-provided computer (an agent)
+# that has a recent version of Ubuntu Linux.
+pool:
+  vmImage: 'ubuntu-latest'
+
+# This is the single, correct 'steps' block that contains all your instructions.
+steps:
+- checkout: self # This step ensures the agent has your code.
+
+- script: |
+    # All of these shell commands will be executed to install k6.
+    sudo apt-get update
+    sudo apt-get install -y curl
+    sudo curl -fsSL https://dl.k6.io/k6-rpm-archive.key | sudo gpg --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg
+    echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+    sudo apt-get update
+    sudo apt-get install -y k6
+  displayName: 'Install k6'
+
+- script: |
+    # This command runs your test script.
+    # Make sure your test script file (e.g., 'my-test.js') is in the root of your repository.
+    k6 run my-test.js
+  displayName: 'Run k6 Load Test'
